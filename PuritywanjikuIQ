@@ -1,0 +1,534 @@
+mkdir -p .github/workflows gradle/wrapper app/src/main/java/com/purity/assistant app/src/main/res/layout app/src/main/res/values app/src/main/res/drawable app/src/main/res/xml app/src/main/res/mipmap-anydpi-v26
+
+cat > .github/workflows/build.yml << 'PURITY_EOF'
+name: Build APK
+on: [push, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: 8.7
+      - name: Build
+        run: gradle assembleDebug --stacktrace
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Purity-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+PURITY_EOF
+
+cat > .gitignore << 'PURITY_EOF'
+*.iml
+.gradle
+/local.properties
+/.idea
+.DS_Store
+/build
+/app/build
+/captures
+.externalNativeBuild
+.cxx
+*.keystore
+PURITY_EOF
+
+cat > LICENSE << 'PURITY_EOF'
+MIT License
+
+Copyright (c) 2025 Purity
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+PURITY_EOF
+
+cat > README.md << 'PURITY_EOF'
+# Purity
+
+A voice assistant that actually controls your Android phone.
+
+Say "Purity, ..." and it can read the screen, tap, type, open apps, send texts, call contacts, set alarms, control media, run privileged shell via Shizuku, and more.
+
+## Build
+Push to GitHub -> Actions -> download Purity-APK artifact.
+
+## First run
+1. Install the APK.
+2. Open Purity, paste your Claude API key.
+3. Tap buttons 1-6 in order.
+4. Tap "Start Purity".
+
+## Optional: Shizuku
+Install from https://shizuku.rikka.app/ for toggling Wi-Fi, Bluetooth, data, airplane mode.
+
+## License
+MIT
+PURITY_EOF
+
+cat > build.gradle.kts << 'PURITY_EOF'
+plugins {
+    id("com.android.application") version "8.5.2" apply false
+    id("org.jetbrains.kotlin.android") version "1.9.24" apply false
+}
+PURITY_EOF
+
+cat > settings.gradle.kts << 'PURITY_EOF'
+pluginManagement {
+    repositories { google(); mavenCentral(); gradlePluginPortal() }
+}
+dependencyResolutionManagement {
+    repositories { google(); mavenCentral() }
+}
+rootProject.name = "Purity"
+include(":app")
+PURITY_EOF
+
+cat > gradle.properties << 'PURITY_EOF'
+org.gradle.jvmargs=-Xmx2g -Dfile.encoding=UTF-8
+android.useAndroidX=true
+android.nonTransitiveRClass=true
+kotlin.code.style=official
+PURITY_EOF
+
+cat > gradle/wrapper/gradle-wrapper.properties << 'PURITY_EOF'
+distributionBase=GRADLE_USER_HOME
+distributionPath=wrapper/dists
+distributionUrl=https\://services.gradle.org/distributions/gradle-8.7-bin.zip
+zipStoreBase=GRADLE_USER_HOME
+zipStorePath=wrapper/dists
+PURITY_EOF
+
+cat > app/build.gradle.kts << 'PURITY_EOF'
+plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+}
+
+android {
+    namespace = "com.purity.assistant"
+    compileSdk = 34
+
+    defaultConfig {
+        applicationId = "com.purity.assistant"
+        minSdk = 26
+        targetSdk = 34
+        versionCode = 1
+        versionName = "1.0"
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+    kotlinOptions { jvmTarget = "17" }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
+    }
+
+    packaging {
+        resources {
+            excludes += setOf(
+                "META-INF/LICENSE.md",
+                "META-INF/NOTICE.md",
+                "META-INF/DEPENDENCIES",
+                "META-INF/LICENSE",
+                "META-INF/NOTICE",
+                "META-INF/*.kotlin_module"
+            )
+        }
+    }
+
+    lint {
+        abortOnError = false
+        checkReleaseBuilds = false
+    }
+}
+
+dependencies {
+    implementation("com.sun.mail:android-mail:1.6.7")
+    implementation("com.sun.mail:android-activation:1.6.7")
+    implementation("dev.rikka.shizuku:api:13.1.5")
+    implementation("dev.rikka.shizuku:provider:13.1.5")
+}
+PURITY_EOF
+
+cat > app/proguard-rules.pro << 'PURITY_EOF'
+-keep class rikka.shizuku.** { *; }
+-keep class com.sun.mail.** { *; }
+-keep class javax.mail.** { *; }
+-keep class com.purity.assistant.** { *; }
+-dontwarn javax.mail.**
+-dontwarn com.sun.mail.**
+-dontwarn org.apache.**
+PURITY_EOF
+
+cat > app/src/main/AndroidManifest.xml << 'PURITY_EOF'
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.CALL_PHONE"/>
+    <uses-permission android:name="android.permission.SEND_SMS"/>
+    <uses-permission android:name="android.permission.READ_CONTACTS"/>
+    <uses-permission android:name="com.android.alarm.permission.SET_ALARM"/>
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" tools:ignore="QueryAllPackagesPermission"/>
+    <uses-permission android:name="android.permission.WRITE_SETTINGS"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <uses-permission android:name="android.permission.READ_CALENDAR"/>
+    <uses-permission android:name="android.permission.WRITE_CALENDAR"/>
+    <uses-permission android:name="android.permission.READ_SMS"/>
+    <uses-permission android:name="android.permission.ANSWER_PHONE_CALLS"/>
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
+    <uses-permission android:name="android.permission.INSTALL_SHORTCUT"/>
+
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN"/>
+            <category android:name="android.intent.category.LAUNCHER"/>
+        </intent>
+        <intent><action android:name="android.intent.action.TTS_SERVICE"/></intent>
+        <intent><action android:name="android.speech.RecognitionService"/></intent>
+    </queries>
+
+    <application
+        android:label="Purity"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:theme="@android:style/Theme.Material.Light.NoActionBar"
+        android:usesCleartextTraffic="true"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:allowBackup="true"
+        android:fullBackupContent="@xml/backup_rules"
+        tools:targetApi="34">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:launchMode="singleTask">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+            <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts"/>
+        </activity>
+
+        <activity
+            android:name=".WakeActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"/>
+
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="${applicationId}.shizuku"
+            android:exported="true"
+            android:multiprocess="false"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL"/>
+
+        <receiver android:name=".BootReceiver" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.BOOT_COMPLETED"/></intent-filter>
+        </receiver>
+
+        <receiver android:name=".PurityWidget" android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+                <action android:name="com.purity.assistant.TOGGLE"/>
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_purity_info"/>
+        </receiver>
+
+        <service
+            android:name=".PurityAccess"
+            android:exported="true"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter><action android:name="android.accessibilityservice.AccessibilityService"/></intent-filter>
+            <meta-data android:name="android.accessibilityservice" android:resource="@xml/access_config"/>
+        </service>
+
+        <service
+            android:name=".NotifListener"
+            android:exported="true"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter><action android:name="android.service.notification.NotificationListenerService"/></intent-filter>
+        </service>
+
+        <service
+            android:name=".PurityService"
+            android:exported="false"
+            android:foregroundServiceType="microphone"/>
+    </application>
+</manifest>
+PURITY_EOF
+
+cat > app/src/main/java/com/purity/assistant/PurityState.kt << 'PURITY_EOF'
+package com.purity.assistant
+
+object PurityState {
+    @Volatile var running: Boolean = false
+    @Volatile var lastReply: String = ""
+    @Volatile var awake: Boolean = false
+}
+PURITY_EOF
+
+cat > app/src/main/java/com/purity/assistant/MainActivity.kt << 'PURITY_EOF'
+package com.purity.assistant
+
+import android.Manifest
+import android.app.Activity
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.content.pm.ShortcutInfo
+import android.content.pm.ShortcutManager
+import android.graphics.drawable.Icon
+import android.net.Uri
+import android.os.Build
+import android.os.Bundle
+import android.provider.Settings
+import android.speech.tts.TextToSpeech
+import android.text.InputType
+import android.widget.*
+
+class MainActivity : Activity() {
+
+    private fun hasPerm(p: String) = checkSelfPermission(p) == PackageManager.PERMISSION_GRANTED
+
+    override fun onCreate(b: Bundle?) {
+        super.onCreate(b)
+        val p = getSharedPreferences("purity", 0)
+
+        val scroll = ScrollView(this)
+        val l = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(48, 96, 48, 96)
+        }
+        fun btn(t: String, a: () -> Unit) = Button(this).apply {
+            text = t
+            setOnClickListener { a() }
+        }
+        fun label(t: String) = TextView(this).apply {
+            text = t
+            textSize = 15f
+            setPadding(0, 24, 0, 6)
+        }
+
+        l.addView(TextView(this).apply {
+            text = "Purity"
+            textSize = 34f
+        })
+        l.addView(TextView(this).apply {
+            text = "Voice assistant that can actually control your phone."
+            setPadding(0, 0, 0, 32)
+        })
+
+        l.addView(label("Settings"))
+        val fields = listOf(
+            "Claude API key (required)" to "key",
+            "ElevenLabs key (optional)" to "evkey",
+            "ElevenLabs voice ID (optional)" to "voice",
+            "Gmail address (optional)" to "mail",
+            "Gmail app password (optional)" to "mailpw"
+        )
+        val edits = fields.map { (hn, k) ->
+            EditText(this).apply {
+                hint = hn
+                setText(p.getString(k, ""))
+                if (k == "key" || k == "evkey" || k == "mailpw")
+                    inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+            }.also { l.addView(it) }
+        }
+        l.addView(btn("Save settings") {
+            val e = p.edit()
+            fields.forEachIndexed { i, f -> e.putString(f.second, edits[i].text.toString().trim()) }
+            e.apply()
+            toast("Saved")
+        })
+
+        l.addView(label("Permissions (do these once, in order)"))
+        l.addView(btn("1. Grant runtime permissions") {
+            val perms = mutableListOf(
+                Manifest.permission.RECORD_AUDIO,
+                Manifest.permission.CALL_PHONE,
+                Manifest.permission.SEND_SMS,
+                Manifest.permission.READ_CONTACTS,
+                Manifest.permission.READ_CALENDAR,
+                Manifest.permission.WRITE_CALENDAR,
+                Manifest.permission.READ_SMS,
+                Manifest.permission.ANSWER_PHONE_CALLS
+            )
+            if (Build.VERSION.SDK_INT >= 33) perms.add(Manifest.permission.POST_NOTIFICATIONS)
+            requestPermissions(perms.toTypedArray(), 1)
+        })
+        l.addView(btn("2. Allow display over other apps") {
+            startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
+        })
+        l.addView(btn("3. Enable screen control (Accessibility)") {
+            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+        })
+        l.addView(btn("4. Enable notification access") {
+            startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+        })
+        l.addView(btn("5. Allow changing brightness") {
+            startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:$packageName")))
+        })
+        l.addView(btn("6. Ignore battery optimization (recommended)") {
+            try {
+                startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:$packageName")))
+            } catch (e: Exception) { toast("Not available on this ROM") }
+        })
+        l.addView(btn("7. Shizuku permission (optional)") {
+            try {
+                if (rikka.shizuku.Shizuku.isPreV11() || rikka.shizuku.Shizuku.getVersion() < 11) {
+                    toast("Please update Shizuku"); return@btn
+                }
+                if (rikka.shizuku.Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED)
+                    toast("Already granted")
+                else rikka.shizuku.Shizuku.requestPermission(2)
+            } catch (e: Throwable) {
+                toast("Install and start Shizuku first")
+            }
+        })
+
+        l.addView(label("Voice"))
+        l.addView(btn("Install/choose a system TTS voice") {
+            try { startActivity(Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA)) } catch (e: Exception) {}
+            toast("Settings > System > Languages > Text-to-speech")
+        })
+
+        l.addView(label("Quick access"))
+        l.addView(btn("Add 'Talk to Purity' to home screen") { installShortcut() })
+
+        l.addView(label("Run"))
+        l.addView(btn("Talk to Purity now") {
+            startForegroundService(Intent(this, PurityService::class.java).setAction("TALK"))
+        })
+        l.addView(btn("Start Purity (always listening)") {
+            if (!hasPerm(Manifest.permission.RECORD_AUDIO)) {
+                toast("Grant mic permission first"); return@btn
+            }
+            startForegroundService(Intent(this, PurityService::class.java))
+        })
+        l.addView(btn("Stop Purity") { stopService(Intent(this, PurityService::class.java)) })
+
+        scroll.addView(l)
+        setContentView(scroll)
+
+        if (intent?.getBooleanExtra("talk", false) == true) {
+            startForegroundService(Intent(this, PurityService::class.java).setAction("TALK"))
+            finish()
+        } else if (intent?.getBooleanExtra("auto", false) == true &&
+            hasPerm(Manifest.permission.RECORD_AUDIO)) {
+            startForegroundService(Intent(this, PurityService::class.java))
+            finish()
+        }
+    }
+
+    private fun toast(t: String) = Toast.makeText(this, t, Toast.LENGTH_SHORT).show()
+
+    private fun installShortcut() {
+        if (Build.VERSION.SDK_INT >= 26) {
+            val sm = getSystemService(ShortcutManager::class.java)
+            val target = Intent(this, MainActivity::class.java)
+                .setAction(Intent.ACTION_VIEW)
+                .putExtra("talk", true)
+            val sc = ShortcutInfo.Builder(this, "talk_to_purity")
+                .setShortLabel("Talk to Purity")
+                .setLongLabel("Talk to Purity")
+                .setIcon(Icon.createWithResource(this, R.drawable.ic_purity))
+                .setIntent(target)
+                .build()
+            sm.requestPinShortcut(sc, null)
+            toast("Shortcut requested")
+        } else {
+            @Suppress("DEPRECATION")
+            val i = Intent("com.android.launcher.action.INSTALL_SHORTCUT")
+                .putExtra(Intent.EXTRA_SHORTCUT_INTENT,
+                    Intent(this, MainActivity::class.java).putExtra("talk", true))
+                .putExtra(Intent.EXTRA_SHORTCUT_NAME, "Talk to Purity")
+                .putExtra(Intent.EXTRA_SHORTCUT_ICON_RESOURCE,
+                    Intent.ShortcutIconResource.fromContext(this, R.drawable.ic_purity))
+            sendBroadcast(i)
+            toast("Shortcut installed")
+        }
+    }
+}
+PURITY_EOF
+
+cat > app/src/main/java/com/purity/assistant/PurityService.kt << 'PURITY_EOF'
+package com.purity.assistant
+
+import android.app.*
+import android.content.Intent
+import android.content.pm.ServiceInfo
+import android.media.MediaPlayer
+import android.os.*
+import android.speech.*
+import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
+import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
+import java.util.Locale
+
+class PurityService : Service(), TextToSpeech.OnInitListener {
+    companion object {
+        private const val CH_ID = "purity"
+        private const val NOTIF_ID = 1
+        private const val ACTION_STOP = "com.purity.assistant.STOP"
+        private const val ACTION_TALK = "com.purity.assistant.TALK_FROM_NOTIF"
+    }
+
+    private lateinit var tts: TextToSpeech
+    private var sr: SpeechRecognizer? = null
+    private val h = Handler(Looper.getMainLooper())
+    private var wl: PowerManager.WakeLock? = null
+    @Volatile private var speaking = false
+    @Volatile private var ttsReady = false
+
+    override fun onBind(i: Intent?): IBinder? = null
+
+    override fun onStartCommand(i: Intent?, f: Int, id: Int): Int {
+        when (i?.action) {
+            ACTION_STOP -> { stopSelf(); return START_NOT_STICKY }
+            ACTION_TALK, "TALK" -> { PurityState.awake = true; h.postDelayed({ speak("Yes?") },
